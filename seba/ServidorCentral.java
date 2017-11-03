@@ -3,6 +3,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Scanner;
 
@@ -41,11 +42,11 @@ public class ServidorCentral{
             System.out.println("[Servidor Central] Dar autorizacion a " + rec_pack.getAddress().getHostAddress() + " por " + distrito + " ?\n" +
                     "1.- SI\n" +
                     "2.- NO");
-            in  = sc.nextInt();
+            in  = Integer.valueOf(sc.nextLine());
             if (in == 1){
                 servers = ser_dist.getServers();
                 for(int i = 0; i< servers.size(); i++){
-                    if(servers.get(i).name == distrito){
+                    if(servers.get(i).name.matches(distrito)){
                         out = new ByteArrayOutputStream();
                         outstr = new ObjectOutputStream(out);
                         outstr.writeObject(servers.get(i));
@@ -58,7 +59,7 @@ public class ServidorCentral{
                         boolean needed = true;
                         int index = -1;
                         for(int j = 0; j < clientes.size(); j++){
-                            if(clientes.get(j)[0] == rec_pack.getAddress().getHostAddress()){
+                            if(clientes.get(j)[0].matches(rec_pack.getAddress().getHostAddress())){
                                 index = j;
                                 needed = false;
                             }
@@ -75,6 +76,7 @@ public class ServidorCentral{
                 send_pack = new DatagramPacket(sendData, sendData.length, rec_pack.getAddress(), rec_pack.getPort());
                 socket.send(send_pack);
             }
+            System.out.println("[Servidor Central] Respuesta enviada a " + rec_pack.getAddress().getHostAddress());
         }
 
     }

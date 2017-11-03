@@ -20,7 +20,7 @@ public class Cliente{
         System.out.println("[Cliente] Ingrese IP Servidor Central");
         address_cent = InetAddress.getByName(in.nextLine());
         System.out.println("[Cliente] Ingrese Puerto Servidor Central");
-        puerto_cent = in.nextInt();
+        puerto_cent = Integer.valueOf(in.nextLine());
 
         System.out.println("[Cliente] Introducir nombre de Distrito que desea investigar");
         distrito = in.nextLine();
@@ -31,18 +31,18 @@ public class Cliente{
             e.printStackTrace();
         }
 
-        MulticastSocket sock_multi = new MulticastSocket(9000);
-        DatagramSocket sock_uni = new DatagramSocket(9001);
-        sock_uni.setSoTimeout(10000);
+        MulticastSocket sock_multi = null;
+        DatagramSocket sock_uni = null;
         byte[] msg;
         ClienteMulticastThread multicastThread = null;
-        DatagramPacket req = null;
-        DatagramPacket res = null;
         if(distrito_data != null){
             authorized = true;
 
-
-            multicastThread = new ClienteMulticastThread(sock_multi, distrito_data);
+            sock_multi = new MulticastSocket(Integer.valueOf(distrito_data.multiAddress[1]));
+            sock_multi.joinGroup(InetAddress.getByName(distrito_data.multiAddress[0]));
+            sock_uni = new DatagramSocket(Integer.valueOf(distrito_data.uniAddress[1]));
+            sock_uni.setSoTimeout(10000);
+            multicastThread = new ClienteMulticastThread(sock_multi);
             Thread t1 = new Thread(multicastThread);
             t1.start();
         }
@@ -56,16 +56,18 @@ public class Cliente{
             System.out.println("[Cliente] (4) Asesinar Titan");
             System.out.println("[Cliente] (5) Listar Titanes Capturados");
             System.out.println("[Cliente] (6) Listar Titanes Asesinados");
-            input = in.nextInt();
+            input = Integer.valueOf(in.nextLine());
             if(input == 1){
                 server_titanes = multicastThread.getTitanes();
                 System.out.println("*********************");
-                for(int i = 0; i < server_titanes.size(); i++){
-                    Titanes aux = server_titanes.get(i);
-                    System.out.println("ID: " + aux.iD);
-                    System.out.println("Nombre: " + aux.nombre);
-                    System.out.println("Tipo: " + aux.tipo);
-                    System.out.println("*********************");
+                if(server_titanes != null){
+                    for(int i = 0; i < server_titanes.size(); i++){
+                        Titanes aux = server_titanes.get(i);
+                        System.out.println("ID: " + aux.iD);
+                        System.out.println("Nombre: " + aux.nombre);
+                        System.out.println("Tipo: " + aux.tipo);
+                        System.out.println("*********************");
+                    }
                 }
             }
             else if (input == 2){
@@ -74,9 +76,13 @@ public class Cliente{
                 DistritoData temp = askPerm(address_cent, puerto_cent, new_dist);
                 if(temp != null){
                     distrito_data = temp;
-                    multicastThread.stopThread();
+                    sock_multi.close();
+                    sock_uni.close();
+                    sock_multi = new MulticastSocket(Integer.valueOf(distrito_data.multiAddress[1]));
+                    sock_uni = new DatagramSocket(Integer.valueOf(distrito_data.uniAddress[1]));
+                    sock_multi.joinGroup(InetAddress.getByName(distrito_data.multiAddress[0]));
                     try {
-                        multicastThread.changeDistrictData(distrito_data);
+                        multicastThread.changeDistrictData(sock_multi);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -89,7 +95,7 @@ public class Cliente{
                 System.out.println("[Cliente] Ingrese el ID del Titan que desea Capturar");
                 String iD = in.nextLine();
                 msg = ("cap:" + iD).getBytes();
-                Titanes aux = manageTitans(msg, sock_uni, req, res);
+                Titanes aux = manageTitans(msg, sock_uni, distrito_data);
                 if(aux != null){
                     aux.setObtencion("Capturado");
                     self_titanes.add(aux);
@@ -103,7 +109,7 @@ public class Cliente{
                 System.out.println("[Cliente] Ingrese el ID del Titan que desea Asesinar");
                 String iD = in.nextLine();
                 msg = ("as:" + iD).getBytes();
-                Titanes aux = manageTitans(msg, sock_uni, req, res);
+                Titanes aux = manageTitans(msg, sock_uni, distrito_data);
                 if(aux != null){
                     aux.setObtencion("Asesinado");
                     self_titanes.add(aux);
@@ -138,14 +144,17 @@ public class Cliente{
                 }
             }
         }
+        sock_multi.leaveGroup(InetAddress.getByName(distrito_data.multiAddress[0]));
+        sock_multi.close();
+        sock_uni.close();
 
     }
 
-    private static Titanes manageTitans(byte[] messg, DatagramSocket sock, DatagramPacket req, DatagramPacket res) throws IOException, ClassNotFoundException {
-        req = new DatagramPacket(messg, messg.length);
+    private static Titanes manageTitans(byte[] messg, DatagramSocket sock, DistritoData data_dist) throws IOException, ClassNotFoundException {
+        DatagramPacket req = new DatagramPacket(messg, messg.length, InetAddress.getByName(data_dist.uniAddress[0]), Integer.valueOf(data_dist.uniAddress[1]));
         sock.send(req);
         messg = new byte[2048];
-        res = new DatagramPacket(messg, messg.length);
+        DatagramPacket res = new DatagramPacket(messg, messg.length);
         sock.receive(res);
         String test = new String(res.getData(), 0, res.getLength());
         if(test.matches("NO")){
@@ -164,7 +173,7 @@ public class Cliente{
     }
 
     private static DistritoData askPerm(InetAddress add, int port, String name) throws IOException, ClassNotFoundException {
-        DatagramSocket sock = new DatagramSocket(9000);
+        DatagramSocket sock = new DatagramSocket(port);
         byte[] msg = name.getBytes();
         DatagramPacket out_pack = new DatagramPacket(msg, msg.length, add, port);
         sock.send(out_pack);
@@ -173,8 +182,8 @@ public class Cliente{
         sock.receive(in);
         String res = new String(in.getData(), 0 ,in.getLength());
         if(res.matches("NO")){
+            sock.close();
             System.out.println("[Cliente] El servidor central no ha otorgado permiso o no se encontro distrito");
-            System.exit(420);
         }
         else{
             byte[] data = in.getData();
@@ -184,6 +193,7 @@ public class Cliente{
             server = (DistritoData) is.readObject();
             is.close();
             input.close();
+            sock.close();
             return server;
         }
         return null;

@@ -5,18 +5,18 @@ import java.net.DatagramPacket;
 import java.net.MulticastSocket;
 import java.util.ArrayList;
 
+import static java.lang.Thread.sleep;
+
 /**
  * Created by blues on 01-11-2017.
  */
 public class ClienteMulticastThread implements Runnable {
-    DistritoData distrito;
     MulticastSocket sock;
     ArrayList<Titanes> titanes;
     boolean running = true;
 
-    ClienteMulticastThread(MulticastSocket socket, DistritoData data){
+    ClienteMulticastThread(MulticastSocket socket){
         this.sock = socket;
-        this.distrito = data;
     }
 
     public void run() {
@@ -33,11 +33,11 @@ public class ClienteMulticastThread implements Runnable {
                 }
                 else{
                     byte[] data = res.getData();
-                    ArrayList<Titanes> new_list;
+                    TitanesList new_list;
                     ByteArrayInputStream input = new ByteArrayInputStream(data);
                     ObjectInputStream is = new ObjectInputStream(input);
-                    new_list = (ArrayList<Titanes>) is.readObject();
-                    this.titanes = new_list;
+                    new_list = (TitanesList) is.readObject();
+                    this.titanes = new_list.getLista();
                     is.close();
                     input.close();
                 }
@@ -49,17 +49,11 @@ public class ClienteMulticastThread implements Runnable {
         }
     }
 
-    public void changeDistrictData(DistritoData new_data) throws InterruptedException {
-        this.distrito = new_data;
-        wait(2000);
-        this.running = true;
+    public void changeDistrictData(MulticastSocket new_sock) throws InterruptedException {
+        this.sock = new_sock;
     }
 
     public ArrayList<Titanes> getTitanes(){
         return this.titanes;
-    }
-
-    public void stopThread(){
-        this.running = false;
     }
 }

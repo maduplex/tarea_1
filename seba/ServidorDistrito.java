@@ -35,7 +35,7 @@ public class ServidorDistrito{
         ServidorDistritoCLIThread cliThread = new ServidorDistritoCLIThread(name, InetAddress.getByName(ip_cent));
         Thread t1 = new Thread(cliThread);
 
-        ServidorDistritoMulticastThread multicastThread = new ServidorDistritoMulticastThread(socket, titanes);
+        ServidorDistritoMulticastThread multicastThread = new ServidorDistritoMulticastThread(socket, titanes, selfData.multiAddress);
         Thread t2 = new Thread(multicastThread);
 
         ServidorDistritoAuxThread unicastThread = new ServidorDistritoAuxThread(titanes, Integer.valueOf(port_uni));
@@ -46,24 +46,15 @@ public class ServidorDistrito{
         t3.start();
 
         while(registrado){
-            if(cliThread.askNew() && !unicastThread.askBusy()){
-                if(unicastThread.askChange()){
-                    titanes = unicastThread.getList();
-                }
-                titanes.add(cliThread.getTitan());
-                signalChange(socket, cliThread.getTitan());
-                cliThread.setNull();
-                unicastThread.updateList(titanes);
-                multicastThread.updateList(titanes);
-            }
-            else if(cliThread.askNew() && unicastThread.askBusy()){
+            if(cliThread.askNew()){
+                System.out.println("poi");
                 while(unicastThread.askBusy()){
                 }
                 if(unicastThread.askChange()){
                     titanes = unicastThread.getList();
                 }
                 titanes.add(cliThread.getTitan());
-                signalChange(socket, cliThread.getTitan());
+                signalChange(socket, cliThread.getTitan(), selfData.multiAddress);
                 cliThread.setNull();
                 unicastThread.updateList(titanes);
                 multicastThread.updateList(titanes);
@@ -76,29 +67,29 @@ public class ServidorDistrito{
 
     }
 
-    private static void signalChange(MulticastSocket sock, Titanes titan) throws IOException {
+    private static void signalChange(MulticastSocket sock, Titanes titan, String[] multiAdress) throws IOException {
         DatagramPacket out;
         byte[] out_msg;
 
         String out_string = "msg:" + titan.nombre + ", tipo " + titan.tipo + ", ID " + titan.iD;
         out_msg = out_string.getBytes();
-        out = new DatagramPacket(out_msg, out_msg.length);
+        out = new DatagramPacket(out_msg, out_msg.length, InetAddress.getByName(multiAdress[0]), Integer.valueOf(multiAdress[1]));
         sock.send(out);
     }
 
     private static boolean sendData(DistritoData data, String ip, String port){
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream outsrc = null;
+        ObjectOutputStream outsrc;
         try {
             InetAddress address = InetAddress.getByName(ip);
             int puerto = Integer.valueOf(port);
             outsrc = new ObjectOutputStream(out);
             outsrc.writeObject(data);
-            outsrc.flush();
             byte[] buff = out.toByteArray();
             DatagramPacket outpck = new DatagramPacket(buff, buff.length, address, puerto);
-            DatagramSocket socket = new DatagramSocket(489);
+            DatagramSocket socket = new DatagramSocket(9001);
             socket.send(outpck);
+            outsrc.flush();
             byte[] ack = new byte[1024];
             DatagramPacket ackg = new DatagramPacket(ack, ack.length);
             socket.setSoTimeout(5000);

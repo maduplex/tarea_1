@@ -12,7 +12,7 @@ import java.util.ArrayList;
 public class ServidorCentralDistritoThread implements Runnable {
     boolean running = true;
     int port;
-    ArrayList<DistritoData> servers;
+    ArrayList<DistritoData> servers = new ArrayList<>();
 
     public ServidorCentralDistritoThread(){
         this.port = 9001;
@@ -43,7 +43,7 @@ public class ServidorCentralDistritoThread implements Runnable {
                 socket.receive(packet);
                 addServer(packet);
                 ack = "OK".getBytes();
-                ackg = new DatagramPacket(ack, ack.length);
+                ackg = new DatagramPacket(ack, ack.length, packet.getAddress(), packet.getPort());
                 socket.send(ackg);
             } catch (IOException e) {
                 e.printStackTrace();

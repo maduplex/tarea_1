@@ -29,7 +29,7 @@ public class ServidorDistritoCLIThread implements Runnable {
             System.out.println("[Distrito " + this.name + "] ¿Desea agregar Titan?\n" +
                     "1.- SI\n" +
                     "2.- NO (Se le volvera a preguntar)");
-            input = in.nextInt();
+            input = Integer.valueOf(in.nextLine());
             if (input == 1){
                 System.out.println("[Distrito " + this.name + "] Introducir Nombre");
                 nombre = in.nextLine();
@@ -37,7 +37,7 @@ public class ServidorDistritoCLIThread implements Runnable {
                         "1.- Normal\n" +
                         "2.- Excentrico\n" +
                         "3.- Cambiante");
-                input = in.nextInt();
+                input = Integer.valueOf(in.nextLine());
                 if(input == 1){
                     tipo = "Normal";
                 } else if (input == 2){
@@ -62,16 +62,16 @@ public class ServidorDistritoCLIThread implements Runnable {
     private String getID(){
         String iD = "";
         try {
-            DatagramSocket sock = new DatagramSocket(489);
+            DatagramSocket sock = new DatagramSocket(9002);
             byte[] req = "PLS".getBytes();
-            DatagramPacket out = new DatagramPacket(req, req.length);
+            DatagramPacket out = new DatagramPacket(req, req.length, this.address, 9002);
             sock.send(out);
             byte[] res = new byte[1024];
             DatagramPacket in =  new DatagramPacket(res, res.length);
             sock.receive(in);
             iD = new String(in.getData(), 0, in.getLength());
+            sock.close();
             return iD;
-
         } catch (SocketException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -81,7 +81,7 @@ public class ServidorDistritoCLIThread implements Runnable {
     }
 
     public Titanes getTitan(){
-        return titan;
+        return this.titan;
     }
 
     public boolean askNew(){
